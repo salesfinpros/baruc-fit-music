@@ -1,0 +1,23 @@
+Pontos de melhoria do Baruc Fit Music: 
+
+- Colocar a música que tá tocando agora para aparecer na visão do aluno
+- Colocar uma votação nas músicas indicadas que estão na fila e assim ela subir para prioridade (cada usuário só pode votar uma vez)
+- Histórico de músicas tocadas nos últimos 30 dias, as mais tocadas também para construirmos futuramente uma playlist com base no gosto musical dos alunos, o histórico precisa ter quem indicou a música, qual horário foi indicada e qual a música. (precisa estar somente no painel admin) 
+
+- Como sei se o banco de dados está realmente atualizado após as melhorias que fizemos? 
+
+
+
+
+Pontos de melhoria:
+- Replicar o sistema de música com a opção de conectar no spotify premium ou no youtube music
+- Cobrar um pix caso o cliente queira deixar a música dele como prioridade (preciso repassar 40% para o proprietário do estabelecimento)
+- Preciso criar um sistema que irei vender ele para outras academias, mas ainda sim eu serei o administrador master que irá comandar os perfis das outras academias e terei também um dashboard intuitivo mostrando alguns dados (criar os dados), cada academia pode ter um administrador para olhar somente os dados da sua academia. 
+- Dito isso, preciso me conectar via api com um sistema de pagamento que receberá o pagamento por recorrência da academia
+- Aba de sugestão de melhorias dentro do painel do administrador 
+- Link de indicação para outra academia e ganhe 1 mensalidade gratuita 
+- Inserir um campo para colocar um áudio e programar ele para passar a cada uma hora, ou trinta minutos e também em dias específicos. 
+- Inserir um campo específico para anúncios personalizados com Nome do Anúncio e Texto do Anúncio e Anexar o áudio para criar o spot de divulgação de parceiros 
+
+
+
