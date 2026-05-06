@@ -5,12 +5,12 @@ export type MotivoRejeicao =
   | 'musica_bloqueada'
   | 'musica_explicita'
   | 'duracao_excedida'
+  | 'ja_na_fila'
   | 'limite_aluno'
   | 'genero_bloqueado'
 
 export type ResultadoValidacao =
   | { ok: true }
-  | { ok: 'boost'; filaItemId: string }   // já está na fila → priorizar
   | { ok: false; motivo: MotivoRejeicao; generoDetectado?: string }
 
 export async function validarSugestao(
@@ -50,9 +50,9 @@ export async function validarSugestao(
     return { ok: false, motivo: 'duracao_excedida' }
   }
 
-  // d) Já na fila → boost em vez de bloquear
+  // d) Já na fila → bloquear duplicata
   if (naFila) {
-    return { ok: 'boost', filaItemId: naFila.id }
+    return { ok: false, motivo: 'ja_na_fila' }
   }
 
   // e) Limite diário do aluno
@@ -82,6 +82,7 @@ export const mensagensRejeicao: Record<MotivoRejeicao, string> = {
   musica_bloqueada: 'Essa música está na lista de bloqueios da academia.',
   musica_explicita: 'Músicas com conteúdo explícito não são permitidas aqui.',
   duracao_excedida: 'Essa música ultrapassa o limite de duração permitido.',
+  ja_na_fila: 'Essa música já está na fila. Aguarde ela tocar!',
   limite_aluno: 'Você atingiu o limite diário de sugestões. Tente novamente amanhã.',
   genero_bloqueado: 'Esse gênero musical não é permitido nesta academia.',
 }

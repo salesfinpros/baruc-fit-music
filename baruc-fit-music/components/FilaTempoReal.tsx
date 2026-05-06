@@ -27,7 +27,6 @@ export default function FilaTempoReal({ academiaId, academiaSlug }: Props) {
         .select('*, alunos(nome)')
         .eq('academia_id', academiaId)
         .eq('status', 'na_fila')
-        .order('votos_count', { ascending: false })
         .order('created_at', { ascending: true })
         .then(({ data }) => setFila((data as FilaSugestao[]) ?? []))
 
@@ -85,14 +84,6 @@ export default function FilaTempoReal({ academiaId, academiaSlug }: Props) {
               {item.duracao_ms && <span className="ml-2">{formatDuration(item.duracao_ms)}</span>}
             </p>
           </div>
-
-          {/* Badge de votos */}
-          {item.votos_count > 0 && (
-            <div className="flex items-center gap-1 px-2 py-1 rounded-full flex-shrink-0" style={{ background: '#F5A800', color: '#0D0D0D' }}>
-              <span className="text-xs font-bold">▲</span>
-              <span className="text-xs font-bold">{item.votos_count}</span>
-            </div>
-          )}
 
           <button
             onClick={() => remover(item.id)}

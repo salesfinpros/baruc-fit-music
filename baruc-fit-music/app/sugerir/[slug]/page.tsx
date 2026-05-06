@@ -9,7 +9,7 @@ import MusicaAtual from '@/components/MusicaAtual'
 import { TrackResult } from '@/components/CardMusica'
 import { supabase } from '@/lib/supabase'
 
-type Estado = 'cadastro' | 'busca' | 'enviando' | 'sucesso' | 'boosted' | 'erro'
+type Estado = 'cadastro' | 'busca' | 'enviando' | 'sucesso' | 'erro'
 
 const STORAGE_KEY = (slug: string) => `baruc_aluno_${slug}`
 
@@ -87,7 +87,7 @@ export default function PaginaSugestao() {
       }
 
       setTrackEnviada(track)
-      setEstado(data.boosted ? 'boosted' : 'sucesso')
+      setEstado('sucesso')
     } catch {
       setErroEnvio('Erro de conexão. Tente novamente.')
       setEstado('erro')
@@ -162,25 +162,20 @@ export default function PaginaSugestao() {
           </div>
         )}
 
-        {/* Sucesso / Boosted */}
-        {(estado === 'sucesso' || estado === 'boosted') && trackEnviada && (
+        {/* Sucesso */}
+        {estado === 'sucesso' && trackEnviada && (
           <div className="mt-6 flex flex-col gap-5">
             <div
               className="rounded-xl p-5 flex flex-col items-center gap-3 text-center"
               style={{
                 background: '#1A1A1A',
-                borderTop: estado === 'boosted' ? '3px solid #F5A800' : '3px solid #22c55e',
+                borderTop: '3px solid #22c55e',
                 borderLeft: '0.5px solid #2A2A2A',
                 borderRight: '0.5px solid #2A2A2A',
                 borderBottom: '0.5px solid #2A2A2A',
               }}
             >
-              <p className="font-bebas text-gold text-2xl tracking-widest">
-                {estado === 'boosted' ? '🔥 MÚSICA PRIORIZADA!' : '✓ MÚSICA ADICIONADA!'}
-              </p>
-              {estado === 'boosted' && (
-                <p className="text-muted text-xs">Já estava na fila e foi re-adicionada com prioridade</p>
-              )}
+              <p className="font-bebas text-gold text-2xl tracking-widest">✓ MÚSICA ADICIONADA!</p>
               <p className="text-white font-bold text-sm mt-1">{trackEnviada.name}</p>
               <p className="text-muted text-xs">{trackEnviada.artist}</p>
             </div>

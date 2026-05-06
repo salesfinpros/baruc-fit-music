@@ -36,25 +36,22 @@ export async function POST(req: NextRequest) {
     const resultado = await validarSugestao(track, academia.id, alunoId, token)
 
     if (resultado.ok === false) {
-      await db.from('bloqueios_log').insert({
-        academia_id: academia.id,
-        aluno_id: alunoId,
-        spotify_track_id: trackId,
-        nome_musica: trackName,
-        artista: artistName,
-        genero_detectado: resultado.generoDetectado ?? null,
-        motivo: resultado.motivo,
-      })
+      // Não logar tentativas de músicas já na fila (não é bloqueio real)
+      if (resultado.motivo !== 'ja_na_fila') {
+        await db.from('bloqueios_log').insert({
+          academia_id: academia.id,
+          aluno_id: alunoId,
+          spotify_track_id: trackId,
+          nome_musica: trackName,
+          artista: artistName,
+          genero_detectado: resultado.generoDetectado ?? null,
+          motivo: resultado.motivo,
+        })
+      }
       return NextResponse.json(
         { error: mensagensRejeicao[resultado.motivo], motivo: resultado.motivo },
         { status: 422 }
       )
-    }
-
-    // Música já na fila → re-adicionar ao Spotify para priorizar
-    if (resultado.ok === 'boost') {
-      await addToQueue(`spotify:track:${trackId}`, token)
-      return NextResponse.json({ ok: true, boosted: true })
     }
 
     // Adicionar ao Spotify
@@ -98,7 +95,7 @@ export async function POST(req: NextRequest) {
         .eq('id', alunoId)
     }
 
-    return NextResponse.json({ ok: true, boosted: false })
+    return NextResponse.json({ ok: true })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Erro interno'
     return NextResponse.json({ error: msg }, { status: 500 })
