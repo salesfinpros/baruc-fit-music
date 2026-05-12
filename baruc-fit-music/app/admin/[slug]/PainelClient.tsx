@@ -256,7 +256,7 @@ export default function PainelClient({
                 <div className="flex items-center gap-3">
                   <div className="relative w-14 h-14 flex-shrink-0 rounded-xl overflow-hidden" style={{ background: '#2A2A2A' }}>
                     {nowPlaying.albumArt && (
-                      <Image src={nowPlaying.albumArt} alt={nowPlaying.name} fill sizes="56px" className="object-cover" />
+                      <img src={nowPlaying.albumArt} alt={nowPlaying.name} className="w-full h-full object-cover" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">

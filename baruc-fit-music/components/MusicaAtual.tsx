@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Image from 'next/image'
 
 type NowPlaying = {
   id: string
@@ -58,7 +57,7 @@ export default function MusicaAtual({ slug }: { slug: string }) {
           <div className="flex items-center gap-3">
             <div className="relative w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden" style={{ background: '#2A2A2A' }}>
               {nowPlaying.albumArt && (
-                <Image src={nowPlaying.albumArt} alt={nowPlaying.name} fill sizes="40px" className="object-cover" />
+                <img src={nowPlaying.albumArt} alt={nowPlaying.name} className="w-full h-full object-cover" />
               )}
             </div>
             <div className="flex-1 min-w-0">

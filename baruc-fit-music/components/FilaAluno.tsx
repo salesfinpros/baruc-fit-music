@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import Image from 'next/image'
 import { supabase, FilaSugestao } from '@/lib/supabase'
 
 type Props = {
@@ -75,7 +74,7 @@ export default function FilaAluno({ academiaId, alunoId }: Props) {
             >
               <div className="relative w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden" style={{ background: '#2A2A2A' }}>
                 {item.capa_url ? (
-                  <Image src={item.capa_url} alt={item.nome_musica} fill sizes="40px" className="object-cover" />
+                  <img src={item.capa_url} alt={item.nome_musica} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-muted text-xs">♪</div>
                 )}

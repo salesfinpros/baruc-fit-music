@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 
 export type TrackResult = {
   id: string
@@ -44,7 +43,7 @@ export default function CardMusica({ track, onSelect, disabled, isLoading }: Ext
     >
       <div className="relative w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden" style={{ background: '#2A2A2A' }}>
         {track.albumArt ? (
-          <Image src={track.albumArt} alt={track.name} fill sizes="40px" className="object-cover" />
+          <img src={track.albumArt} alt={track.name} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-xl" style={{ color: '#444' }}>♪</div>
         )}

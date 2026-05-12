@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import Image from 'next/image'
 import { HistoricoTocada } from '@/lib/supabase'
 
 type Periodo = 'hoje' | '7dias' | '30dias'
@@ -120,7 +119,7 @@ export default function HistoricoAdmin({ academiaSlug }: { academiaSlug: string 
                   <div key={item.spotify_track_id} className="flex items-center gap-3">
                     <span className="font-bebas text-muted text-base w-4 text-center flex-shrink-0">{i + 1}</span>
                     <div className="relative w-8 h-8 flex-shrink-0 rounded overflow-hidden" style={{ background: '#2A2A2A' }}>
-                      {item.capa_url && <Image src={item.capa_url} alt={item.nome_musica} fill sizes="32px" className="object-cover" />}
+                      {item.capa_url && <img src={item.capa_url} alt={item.nome_musica} className="w-full h-full object-cover" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-xs truncate font-medium">{item.nome_musica}</p>
@@ -146,7 +145,7 @@ export default function HistoricoAdmin({ academiaSlug }: { academiaSlug: string 
                   style={{ borderBottom: '0.5px solid #2A2A2A' }}
                 >
                   <div className="relative w-8 h-8 flex-shrink-0 rounded overflow-hidden" style={{ background: '#2A2A2A' }}>
-                    {item.capa_url && <Image src={item.capa_url} alt={item.nome_musica} fill sizes="32px" className="object-cover" />}
+                    {item.capa_url && <img src={item.capa_url} alt={item.nome_musica} className="w-full h-full object-cover" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-xs truncate font-medium">{item.nome_musica}</p>

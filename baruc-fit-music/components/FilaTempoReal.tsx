@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Image from 'next/image'
 import { supabase, FilaSugestao } from '@/lib/supabase'
 
 type Props = {
@@ -70,7 +69,7 @@ export default function FilaTempoReal({ academiaId, academiaSlug }: Props) {
 
           <div className="relative w-11 h-11 flex-shrink-0 rounded-lg overflow-hidden" style={{ background: '#2A2A2A' }}>
             {item.capa_url ? (
-              <Image src={item.capa_url} alt={item.nome_musica} fill sizes="44px" className="object-cover" />
+              <img src={item.capa_url} alt={item.nome_musica} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted">♪</div>
             )}
