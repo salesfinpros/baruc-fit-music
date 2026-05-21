@@ -7,6 +7,7 @@ import BuscaMusica from '@/components/BuscaMusica'
 import FilaAluno from '@/components/FilaAluno'
 import MusicaAtual from '@/components/MusicaAtual'
 import { TrackResult } from '@/components/CardMusica'
+import SugestaoFlutuante from '@/components/SugestaoFlutuante'
 import { supabase } from '@/lib/supabase'
 
 type Estado = 'cadastro' | 'busca' | 'enviando' | 'sucesso' | 'erro'
@@ -212,6 +213,10 @@ export default function PaginaSugestao() {
           </div>
         )}
       </main>
+
+      {estado !== 'cadastro' && (
+        <SugestaoFlutuante academiaSlug={slug} alunoId={alunoId} />
+      )}
     </div>
   )
 }
