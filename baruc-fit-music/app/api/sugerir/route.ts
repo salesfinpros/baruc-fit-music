@@ -6,7 +6,7 @@ import { validarSugestao, mensagensRejeicao } from '@/lib/validacao'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { trackId, trackName, artistName, artistId, albumArt, durationMs, explicit, academiaSlug, alunoId } = body
+    const { trackId, trackName, artistName, artistId, albumId, albumArt, durationMs, explicit, academiaSlug, alunoId } = body
 
     if (!trackId || !academiaSlug || !alunoId) {
       return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
@@ -22,13 +22,28 @@ export async function POST(req: NextRequest) {
 
     if (!academia) return NextResponse.json({ error: 'Academia não encontrada' }, { status: 404 })
 
+    // Verificar se aluno está suspenso (antes de qualquer validação)
+    const { data: aluno } = await db
+      .from('alunos')
+      .select('suspenso, motivo_suspensao')
+      .eq('id', alunoId)
+      .eq('academia_id', academia.id)
+      .single()
+
+    if (aluno?.suspenso) {
+      return NextResponse.json(
+        { error: 'Sua conta está suspensa nesta academia. Entre em contato com a recepção.' },
+        { status: 403 }
+      )
+    }
+
     const token = await getAcademiaToken(academia.id)
 
     const track = {
       id: trackId,
       name: trackName,
       artists: [{ id: artistId, name: artistName }],
-      album: { images: [{ url: albumArt }] },
+      album: { id: albumId ?? '', images: [{ url: albumArt }] },
       duration_ms: durationMs,
       explicit: !!explicit,
     }

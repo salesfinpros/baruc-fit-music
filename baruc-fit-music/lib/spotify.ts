@@ -7,9 +7,22 @@ export type SpotifyTrack = {
   id: string
   name: string
   artists: { id: string; name: string }[]
-  album: { images: { url: string }[] }
+  album: { id: string; images: { url: string }[] }
   duration_ms: number
   explicit: boolean
+}
+
+export type SpotifyArtist = {
+  id: string
+  name: string
+  images: { url: string }[]
+}
+
+export type SpotifyAlbum = {
+  id: string
+  name: string
+  artists: { id: string; name: string }[]
+  images: { url: string }[]
 }
 
 // ----------------------------------------------------------------
@@ -83,6 +96,32 @@ export async function searchTracks(query: string, token: string): Promise<Spotif
   if (!res.ok) return []
   const data = await res.json()
   return data.tracks?.items ?? []
+}
+
+// ----------------------------------------------------------------
+// Buscar artistas
+// ----------------------------------------------------------------
+export async function searchArtists(query: string, token: string): Promise<SpotifyArtist[]> {
+  const params = new URLSearchParams({ q: query, type: 'artist', limit: '8', market: 'BR' })
+  const res = await fetch(`${SPOTIFY_API}/search?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) return []
+  const data = await res.json()
+  return data.artists?.items ?? []
+}
+
+// ----------------------------------------------------------------
+// Buscar álbuns
+// ----------------------------------------------------------------
+export async function searchAlbums(query: string, token: string): Promise<SpotifyAlbum[]> {
+  const params = new URLSearchParams({ q: query, type: 'album', limit: '8', market: 'BR' })
+  const res = await fetch(`${SPOTIFY_API}/search?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) return []
+  const data = await res.json()
+  return data.albums?.items ?? []
 }
 
 // ----------------------------------------------------------------

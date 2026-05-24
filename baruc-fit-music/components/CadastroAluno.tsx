@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { mascaraTelefone, validarTelefone } from '@/lib/telefone'
+import { mascaraTelefone, validarTelefone, formatarCPF, validarCPF } from '@/lib/telefone'
 
 type Props = {
   academiaSlug: string
@@ -10,23 +10,34 @@ type Props = {
 
 export default function CadastroAluno({ academiaSlug, onCadastro }: Props) {
   const [nome, setNome] = useState('')
+  const [cpf, setCpf] = useState('')
   const [telefone, setTelefone] = useState('')
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+
+  const nomeValido = nome.trim().length >= 3
+  const cpfValido = validarCPF(cpf)
+  const telefoneValido = validarTelefone(telefone)
+  const formValido = nomeValido && cpfValido && telefoneValido
+
+  function handleCpf(valor: string) {
+    setCpf(formatarCPF(valor))
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setErro(null)
 
-    if (!nome.trim()) return setErro('Informe seu nome.')
-    if (!validarTelefone(telefone)) return setErro('Telefone inválido. Use o formato (XX) XXXXX-XXXX.')
+    if (!nomeValido) return setErro('Nome deve ter pelo menos 3 caracteres.')
+    if (!cpfValido) return setErro('CPF inválido. Verifique o número digitado.')
+    if (!telefoneValido) return setErro('Telefone inválido. Use o formato (XX) XXXXX-XXXX.')
 
     setLoading(true)
     try {
       const res = await fetch('/api/alunos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, telefone, academiaSlug }),
+        body: JSON.stringify({ nome, cpf, telefone, academiaSlug }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -42,7 +53,7 @@ export default function CadastroAluno({ academiaSlug, onCadastro }: Props) {
     <div className="flex flex-col gap-6">
       <div className="text-center">
         <p className="text-white text-sm leading-relaxed">
-          Para sugerir músicas, informe seu nome e celular.
+          Para sugerir músicas, preencha seus dados abaixo.
         </p>
         <p className="text-muted text-xs mt-1">Usado apenas para controlar o limite diário.</p>
       </div>
@@ -59,7 +70,23 @@ export default function CadastroAluno({ academiaSlug, onCadastro }: Props) {
             placeholder="Como te chamamos?"
             autoComplete="given-name"
             className="w-full bg-surface border rounded-xl px-4 py-3 text-white placeholder-muted"
-            style={{ borderColor: '#2A2A2A' }}
+            style={{ borderColor: nomeValido ? '#2A2A2A' : nome.length > 0 ? 'rgba(255,68,68,0.4)' : '#2A2A2A' }}
+          />
+        </div>
+
+        <div>
+          <label className="font-bebas text-muted text-xs mb-2 block" style={{ letterSpacing: '2px' }}>
+            CPF
+          </label>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={cpf}
+            onChange={e => handleCpf(e.target.value)}
+            placeholder="000.000.000-00"
+            autoComplete="off"
+            className="w-full bg-surface border rounded-xl px-4 py-3 text-white placeholder-muted"
+            style={{ borderColor: cpfValido ? '#2A2A2A' : cpf.length > 0 ? 'rgba(255,68,68,0.4)' : '#2A2A2A' }}
           />
         </div>
 
@@ -75,7 +102,7 @@ export default function CadastroAluno({ academiaSlug, onCadastro }: Props) {
             placeholder="(XX) XXXXX-XXXX"
             autoComplete="tel"
             className="w-full bg-surface border rounded-xl px-4 py-3 text-white placeholder-muted"
-            style={{ borderColor: '#2A2A2A' }}
+            style={{ borderColor: telefoneValido ? '#2A2A2A' : telefone.length > 0 ? 'rgba(255,68,68,0.4)' : '#2A2A2A' }}
           />
         </div>
 
@@ -87,12 +114,16 @@ export default function CadastroAluno({ academiaSlug, onCadastro }: Props) {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !formValido}
           className="w-full bg-gold hover:bg-gold-light text-bg font-bebas rounded-xl disabled:opacity-60 disabled:cursor-not-allowed"
           style={{ height: '52px', fontSize: '18px', letterSpacing: '2px' }}
         >
           {loading ? 'ENTRANDO...' : 'ENTRAR E SUGERIR'}
         </button>
+
+        <p className="text-center text-xs" style={{ color: '#444' }}>
+          Seus dados são usados apenas para controle interno e não serão compartilhados (LGPD).
+        </p>
       </form>
     </div>
   )

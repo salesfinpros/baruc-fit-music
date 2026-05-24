@@ -6,6 +6,7 @@ export type TrackResult = {
   name: string
   artist: string
   artistId: string
+  albumId: string
   albumArt: string | null
   durationMs: number
   explicit: boolean

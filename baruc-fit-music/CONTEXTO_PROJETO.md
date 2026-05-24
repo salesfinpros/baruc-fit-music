@@ -9,7 +9,7 @@
 
 ## 1. O QUE É O APP
 
-Sistema web para academias gerenciarem uma fila colaborativa de músicas integrada ao Spotify. Alunos escaneiam um QR Code, cadastram nome e telefone, buscam músicas e sugerem para a fila. O admin controla o que pode ou não tocar.
+Sistema web para academias gerenciarem uma fila colaborativa de músicas integrada ao Spotify. Alunos escaneiam um QR Code, cadastram nome, CPF e telefone, buscam músicas e sugerem para a fila. O admin controla o que pode ou não tocar.
 
 **Academias cadastradas:**
 - Academia Umirim (`slug: umirim`)
@@ -43,28 +43,31 @@ baruc-fit-music/
 │   │   ├── login/page.tsx             # Tela de login do admin
 │   │   └── [slug]/
 │   │       ├── page.tsx               # SSR: valida sessão, carrega academia
-│   │       ├── PainelClient.tsx       # Painel admin (7 abas)
+│   │       ├── PainelClient.tsx       # Painel admin (8 abas)
 │   │       └── ConfiguracaoPanel.tsx  # CRUD de configurações da academia
 │   ├── sugerir/
 │   │   └── [slug]/page.tsx            # Tela pública do aluno
 │   └── api/
 │       ├── alunos/
-│       │   ├── route.ts               # POST: cadastro/login do aluno
+│       │   ├── route.ts               # POST: cadastro/login do aluno (CPF + telefone)
 │       │   └── sugestao/route.ts      # DELETE: aluno cancela sua sugestão
 │       ├── sugerir/route.ts           # POST: valida e adiciona música à fila
 │       ├── sugestoes/route.ts         # POST: salva feedback | GET: lista (admin)
-│       ├── votar/route.ts             # POST/DELETE: voto em item da fila (*)
 │       ├── historico/route.ts         # GET: histórico 30 dias | POST: registra tocada
 │       ├── admin/
 │       │   ├── login/route.ts         # POST: auth | DELETE: logout
 │       │   ├── fila/route.ts          # DELETE: remove item da fila
 │       │   ├── config/route.ts        # GET/PATCH: configurações da academia
-│       │   ├── alunos/route.ts        # DELETE: remove aluno (LGPD)
+│       │   ├── alunos/
+│       │   │   ├── route.ts           # GET: lista paginada | DELETE: remove (LGPD)
+│       │   │   └── [alunoId]/
+│       │   │       └── suspender/
+│       │   │           └── route.ts   # PATCH: suspender | DELETE: reativar
 │       │   └── historico/route.ts     # GET: histórico paginado com filtros
 │       ├── spotify/
 │       │   ├── login/route.ts         # GET: inicia OAuth Spotify
 │       │   ├── callback/route.ts      # GET: finaliza OAuth, salva tokens
-│       │   ├── search/route.ts        # GET: busca músicas
+│       │   ├── search/route.ts        # GET: busca músicas/artistas/álbuns
 │       │   ├── now-playing/route.ts   # GET: faixa tocando agora
 │       │   └── disconnect/route.ts    # POST: desconecta conta Spotify
 │       └── cron/
@@ -75,21 +78,23 @@ baruc-fit-music/
 │   ├── MusicaAtual.tsx        # Card "tocando agora" (polling 12s)
 │   ├── BuscaMusica.tsx        # Input de busca com debounce 300ms
 │   ├── CardMusica.tsx         # Card clicável de resultado de busca
-│   ├── CadastroAluno.tsx      # Formulário nome + telefone
+│   ├── CadastroAluno.tsx      # Formulário nome + CPF + telefone (LGPD)
 │   ├── HistoricoAdmin.tsx     # Histórico + top 10 mais tocadas
 │   ├── LogBloqueios.tsx       # Log de rejeições em tempo real
 │   ├── QRCodeAcademia.tsx     # QR Code com download PNG
+│   ├── AlunosAdmin.tsx        # Listagem paginada de alunos + suspensão
 │   ├── SugestaoFlutuante.tsx  # Botão flutuante + modal de feedback
 │   └── SugestoesAdmin.tsx     # Listagem de sugestões de melhoria
 ├── lib/
 │   ├── supabase.ts    # Clientes Supabase (anon e admin) + tipos TypeScript
 │   ├── spotify.ts     # Funções da Spotify API + auto-refresh de token
 │   ├── auth.ts        # Criação e verificação de JWT admin
-│   ├── validacao.ts   # 6 critérios de validação de sugestão
-│   └── telefone.ts    # Máscara, limpeza e validação de telefone
+│   ├── validacao.ts   # 8 critérios de validação de sugestão
+│   └── telefone.ts    # Máscara/validação telefone + funções CPF
 ├── supabase/
-│   ├── schema.sql     # Schema v1: 5 tabelas base
-│   └── schema_v2.sql  # Schema v2: votos + historico_tocadas
+│   ├── schema.sql       # Schema v1: 5 tabelas base
+│   ├── schema_v2.sql    # Schema v2: votos + historico_tocadas
+│   └── migration_v3.sql # Schema v3: CPF, suspensão, artistas/álbuns bloqueados
 ├── next.config.ts     # images.unoptimized: true (sem consumo Image Optimization)
 ├── vercel.json        # Cron job diário às 3h UTC
 ├── package.json
@@ -121,11 +126,18 @@ baruc-fit-music/
 | academia_id | UUID FK | |
 | nome | TEXT | |
 | telefone | TEXT | Apenas dígitos |
+| cpf | TEXT | Formato XXX.XXX.XXX-XX (nullable) |
 | total_sugestoes_hoje | INT | Resetado pelo cron |
 | ultima_sugestao_em | TIMESTAMPTZ | |
+| suspenso | BOOLEAN | Default FALSE |
+| motivo_suspensao | TEXT | nullable |
+| suspenso_em | TIMESTAMPTZ | nullable |
+| suspenso_por | TEXT | Slug da academia que suspendeu |
 | created_at | TIMESTAMPTZ | |
 
-**Constraint:** UNIQUE(academia_id, telefone)
+**Constraints:**
+- UNIQUE(academia_id, telefone)
+- UNIQUE INDEX em (academia_id, cpf) WHERE cpf IS NOT NULL
 
 #### `fila_sugestoes`
 | Coluna | Tipo | Descrição |
@@ -143,24 +155,14 @@ baruc-fit-music/
 | added_to_spotify_at | TIMESTAMPTZ | |
 | created_at | TIMESTAMPTZ | |
 
-#### `votos`
-| Coluna | Tipo | Descrição |
-|---|---|---|
-| id | UUID PK | |
-| fila_item_id | UUID FK → fila_sugestoes | ON DELETE CASCADE |
-| aluno_id | UUID FK → alunos | ON DELETE CASCADE |
-| academia_id | UUID FK | |
-| created_at | TIMESTAMPTZ | |
-
-**Constraint:** UNIQUE(fila_item_id, aluno_id)  
-**Obs:** Tabela existe mas não tem UI ativa — votação foi removida.
-
 #### `config_academia`
 | Coluna | Tipo | Descrição |
 |---|---|---|
 | academia_id | UUID PK FK | |
 | generos_bloqueados | TEXT[] | Ex: ['funk', 'sertanejo'] |
 | musicas_bloqueadas | TEXT[] | IDs de tracks Spotify |
+| albuns_bloqueados | TEXT[] | JSON strings: `{"id":"xxx","nome":"Álbum","artista":"Nome"}` |
+| artistas_bloqueados | TEXT[] | JSON strings: `{"id":"xxx","nome":"Artista"}` |
 | limite_sugestoes_aluno_por_dia | INT | Padrão: 3 |
 | duracao_maxima_ms | INT | Padrão: 420000 (7 min) |
 | bloquear_explicitas | BOOLEAN | |
@@ -175,10 +177,8 @@ baruc-fit-music/
 | nome_musica | TEXT | |
 | artista | TEXT | |
 | genero_detectado | TEXT nullable | |
-| motivo | TEXT | `musica_bloqueada` / `musica_explicita` / `duracao_excedida` / `ja_na_fila` / `limite_aluno` / `genero_bloqueado` |
+| motivo | TEXT | `musica_bloqueada` / `album_bloqueado` / `artista_bloqueado` / `musica_explicita` / `duracao_excedida` / `ja_na_fila` / `limite_aluno` / `genero_bloqueado` |
 | created_at | TIMESTAMPTZ | |
-
-**Obs:** Duplicatas (`ja_na_fila`) não são registradas aqui — tratamento feito no código.
 
 #### `historico_tocadas`
 | Coluna | Tipo | Descrição |
@@ -193,7 +193,7 @@ baruc-fit-music/
 | duracao_ms | INT nullable | |
 | tocada_em | TIMESTAMPTZ | |
 
-#### `sugestoes_melhoria` ⚠️ PRECISA SER CRIADA
+#### `sugestoes_melhoria` ⚠️ PRECISA SER CRIADA NO SUPABASE
 | Coluna | Tipo | Descrição |
 |---|---|---|
 | id | UUID PK | |
@@ -214,6 +214,12 @@ CREATE TABLE sugestoes_melhoria (
 ALTER TABLE sugestoes_melhoria ENABLE ROW LEVEL SECURITY;
 ```
 
+### Migration v3 (executar no Supabase SQL Editor)
+Ver arquivo `supabase/migration_v3.sql`:
+- `config_academia`: adiciona `albuns_bloqueados TEXT[]`, `artistas_bloqueados TEXT[]`
+- `alunos`: adiciona `cpf TEXT`, `suspenso BOOLEAN`, `motivo_suspensao TEXT`, `suspenso_em TIMESTAMPTZ`, `suspenso_por TEXT`
+- Cria índice único em `(academia_id, cpf) WHERE cpf IS NOT NULL`
+
 ### RPCs (funções Postgres)
 - `incrementar_sugestao(p_aluno_id)` — incrementa `total_sugestoes_hoje` + seta `ultima_sugestao_em`
 - `incrementar_votos(p_fila_item_id)` — +1 em `votos_count`
@@ -222,18 +228,18 @@ ALTER TABLE sugestoes_melhoria ENABLE ROW LEVEL SECURITY;
 ### Realtime ativo
 - `fila_sugestoes` — usado por FilaAluno e FilaTempoReal
 - `bloqueios_log` — usado por LogBloqueios
-- `votos` — publicada mas sem listener ativo (UI removida)
 
 ---
 
 ## 5. MÓDULOS IMPLEMENTADOS
 
 ### Tela do Aluno (`/sugerir/[slug]`)
-- [x] Cadastro com nome + telefone (validação de 10-11 dígitos)
+- [x] Cadastro com nome + CPF (validação completa com algoritmo) + telefone
+- [x] Aviso LGPD no formulário de cadastro
 - [x] Persistência do aluno no localStorage por academia
 - [x] Card "tocando agora" com progresso (polling 12s)
 - [x] Busca de músicas com debounce 300ms
-- [x] Sugestão com validação completa (6 critérios)
+- [x] Sugestão com validação completa (8 critérios + verificação de suspensão)
 - [x] Fila em tempo real via Supabase Realtime
 - [x] Cancelamento da própria sugestão
 - [x] Limite diário de sugestões por aluno
@@ -247,7 +253,8 @@ ALTER TABLE sugestoes_melhoria ENABLE ROW LEVEL SECURITY;
 - [x] **Aba Histórico** — log detalhado + top 10 mais tocadas (hoje/7/30 dias)
 - [x] **Aba QR Code** — geração e download PNG do QR para os alunos
 - [x] **Aba Spotify** — conexão e desconexão da conta Spotify via OAuth
-- [x] **Aba Config** — CRUD de gêneros e músicas bloqueados, limite diário, duração máxima, conteúdo explícito
+- [x] **Aba Config** — CRUD de gêneros, músicas, artistas e álbuns bloqueados; limite diário; duração máxima; conteúdo explícito
+- [x] **Aba Alunos** — listagem paginada (20/página), busca por nome/CPF/telefone, suspensão com motivo, reativação, exclusão LGPD
 - [x] **Aba Sugestões** — listagem de feedbacks dos alunos com nome e horário
 - [x] Card "tocando agora" fixo no topo do painel (polling 5s)
 - [x] Registro automático no histórico quando faixa muda
@@ -257,6 +264,8 @@ ALTER TABLE sugestoes_melhoria ENABLE ROW LEVEL SECURITY;
 - [x] OAuth 2.0 completo (login → callback → tokens salvos no Supabase)
 - [x] Auto-refresh de token quando expira em menos de 60s
 - [x] Busca de músicas (`GET /search?type=track`)
+- [x] Busca de artistas (`GET /search?type=artist`)
+- [x] Busca de álbuns (`GET /search?type=album`)
 - [x] Adição à fila (`POST /me/player/queue`)
 - [x] "Tocando agora" (`GET /me/player/currently-playing`)
 - [x] Gêneros do artista para validação (`GET /artists/{id}`)
@@ -268,13 +277,16 @@ ALTER TABLE sugestoes_melhoria ENABLE ROW LEVEL SECURITY;
 - [x] Protegido por `CRON_SECRET` no header Authorization
 
 ### Validação de Sugestões (ordem de execução)
-1. Config da academia existe?
-2. Música está na blacklist?
-3. Conteúdo explícito e bloqueado?
-4. Duração excede o máximo?
-5. Música já está na fila?
-6. Aluno atingiu limite diário?
-7. Gênero do artista bloqueado?
+1. Verificar se aluno está suspenso (antes da validação)
+2. Config da academia existe?
+3. Música está na blacklist?
+4. Álbum está na blacklist?
+5. Artista está na blacklist?
+6. Conteúdo explícito e bloqueado?
+7. Duração excede o máximo?
+8. Música já está na fila?
+9. Aluno atingiu limite diário?
+10. Gênero do artista bloqueado? (via Spotify API)
 
 ---
 
@@ -313,7 +325,7 @@ Todas configuradas no Vercel. O arquivo `.env.local` local está no `.gitignore`
 ## 8. LIMITAÇÕES CONHECIDAS
 
 ### Spotify — Ordem da Fila
-A API do Spotify (`POST /me/player/queue`) só permite adicionar ao **final** da fila. Não existe endpoint para reordenar. Por isso a votação foi removida — ela mostrava ordem diferente na UI mas não afetava o que tocava no Spotify.
+A API do Spotify (`POST /me/player/queue`) só permite adicionar ao **final** da fila. Não existe endpoint para reordenar.
 
 **Solução possível (não implementada):** Botão manual "Tocar a seguir" no admin que usa `POST /me/player/next` para pular e adicionar a música prioritária novamente ao início.
 
@@ -322,7 +334,7 @@ A API do Spotify (`POST /me/player/queue`) só permite adicionar ao **final** da
 - Image Optimization: 5.000/mês — resolvido com `unoptimized: true` + `<img>` nativo
 
 ### Conta Spotify Premium
-A academia precisa ter conta Spotify Premium para que a API de controle de fila funcione. Com conta gratuita, o endpoint retorna 403.
+A academia precisa ter conta Spotify Premium para que a API de controle de fila funcione.
 
 ---
 
@@ -331,6 +343,7 @@ A academia precisa ter conta Spotify Premium para que a API de controle de fila 
 | Item | Status | Detalhe |
 |---|---|---|
 | Criar tabela `sugestoes_melhoria` no Supabase | **PENDENTE** | SQL disponível na seção 4 deste arquivo |
+| Executar `migration_v3.sql` no Supabase | **PENDENTE** | Adiciona CPF, suspensão e artistas/álbuns bloqueados |
 | Botão "Tocar a seguir" no admin | Não iniciado | Contorna limitação da fila Spotify |
 | Rate limiting no login admin | Não iniciado | Não há bloqueio por tentativas |
 | Notificação push quando a música do aluno está tocando | Não iniciado | Ideia futura |

@@ -43,8 +43,13 @@ export type Aluno = {
   academia_id: string
   nome: string
   telefone: string
+  cpf: string | null
   total_sugestoes_hoje: number
   ultima_sugestao_em: string | null
+  suspenso: boolean
+  motivo_suspensao: string | null
+  suspenso_em: string | null
+  suspenso_por: string | null
   created_at: string
 }
 
@@ -93,7 +98,7 @@ export type BloqueioLog = {
   nome_musica: string
   artista: string
   genero_detectado: string | null
-  motivo: 'genero_bloqueado' | 'musica_bloqueada' | 'duplicada' | 'limite_aluno' | 'musica_explicita' | 'duracao_excedida'
+  motivo: 'genero_bloqueado' | 'musica_bloqueada' | 'album_bloqueado' | 'artista_bloqueado' | 'duplicada' | 'limite_aluno' | 'musica_explicita' | 'duracao_excedida'
   created_at: string
 }
 
@@ -101,6 +106,8 @@ export type ConfigAcademia = {
   academia_id: string
   generos_bloqueados: string[]
   musicas_bloqueadas: string[]
+  albuns_bloqueados: string[]
+  artistas_bloqueados: string[]
   limite_sugestoes_aluno_por_dia: number
   duracao_maxima_ms: number
   bloquear_explicitas: boolean

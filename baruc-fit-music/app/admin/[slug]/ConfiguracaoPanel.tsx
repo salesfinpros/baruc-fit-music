@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import type { ConfigAcademia } from '@/lib/supabase'
+
+type ItemBloqueado = { id: string; nome: string; artista?: string; imagemUrl: string | null }
 
 export default function ConfiguracaoPanel({ academiaSlug }: { academiaSlug: string }) {
   const [config, setConfig] = useState<ConfigAcademia | null>(null)
@@ -11,6 +13,18 @@ export default function ConfiguracaoPanel({ academiaSlug }: { academiaSlug: stri
 
   const [novoGenero, setNovoGenero] = useState('')
   const [novaMusicaId, setNovaMusicaId] = useState('')
+
+  // Artistas
+  const [buscaArtista, setBuscaArtista] = useState('')
+  const [resultadosArtista, setResultadosArtista] = useState<ItemBloqueado[]>([])
+  const [buscandoArtista, setBuscandoArtista] = useState(false)
+  const artistaTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Álbuns
+  const [buscaAlbum, setBuscaAlbum] = useState('')
+  const [resultadosAlbum, setResultadosAlbum] = useState<ItemBloqueado[]>([])
+  const [buscandoAlbum, setBuscandoAlbum] = useState(false)
+  const albumTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     fetch('/api/admin/config')
@@ -70,6 +84,82 @@ export default function ConfiguracaoPanel({ academiaSlug }: { academiaSlug: stri
     const newConfig = { ...config, musicas_bloqueadas: updated }
     setConfig(newConfig)
     salvar({ musicas_bloqueadas: updated })
+  }
+
+  function handleBuscaArtista(valor: string) {
+    setBuscaArtista(valor)
+    if (artistaTimer.current) clearTimeout(artistaTimer.current)
+    if (!valor.trim()) { setResultadosArtista([]); return }
+    artistaTimer.current = setTimeout(async () => {
+      setBuscandoArtista(true)
+      try {
+        const res = await fetch(`/api/spotify/search?q=${encodeURIComponent(valor)}&type=artist&slug=${academiaSlug}`)
+        const data = await res.json()
+        setResultadosArtista(data.artists ?? [])
+      } catch { setResultadosArtista([]) }
+      finally { setBuscandoArtista(false) }
+    }, 300)
+  }
+
+  function adicionarArtista(artista: ItemBloqueado) {
+    if (!config) return
+    const entry = JSON.stringify({ id: artista.id, nome: artista.nome })
+    const existing = config.artistas_bloqueados ?? []
+    if (existing.some(e => { try { return JSON.parse(e).id === artista.id } catch { return false } })) return
+    const updated = [...existing, entry]
+    const newConfig = { ...config, artistas_bloqueados: updated }
+    setConfig(newConfig)
+    salvar({ artistas_bloqueados: updated })
+    setBuscaArtista('')
+    setResultadosArtista([])
+  }
+
+  function removerArtista(entry: string) {
+    if (!config) return
+    const updated = (config.artistas_bloqueados ?? []).filter(e => e !== entry)
+    const newConfig = { ...config, artistas_bloqueados: updated }
+    setConfig(newConfig)
+    salvar({ artistas_bloqueados: updated })
+  }
+
+  function handleBuscaAlbum(valor: string) {
+    setBuscaAlbum(valor)
+    if (albumTimer.current) clearTimeout(albumTimer.current)
+    if (!valor.trim()) { setResultadosAlbum([]); return }
+    albumTimer.current = setTimeout(async () => {
+      setBuscandoAlbum(true)
+      try {
+        const res = await fetch(`/api/spotify/search?q=${encodeURIComponent(valor)}&type=album&slug=${academiaSlug}`)
+        const data = await res.json()
+        setResultadosAlbum(data.albums ?? [])
+      } catch { setResultadosAlbum([]) }
+      finally { setBuscandoAlbum(false) }
+    }, 300)
+  }
+
+  function adicionarAlbum(album: ItemBloqueado) {
+    if (!config) return
+    const entry = JSON.stringify({ id: album.id, nome: album.nome, artista: album.artista })
+    const existing = config.albuns_bloqueados ?? []
+    if (existing.some(e => { try { return JSON.parse(e).id === album.id } catch { return false } })) return
+    const updated = [...existing, entry]
+    const newConfig = { ...config, albuns_bloqueados: updated }
+    setConfig(newConfig)
+    salvar({ albuns_bloqueados: updated })
+    setBuscaAlbum('')
+    setResultadosAlbum([])
+  }
+
+  function removerAlbum(entry: string) {
+    if (!config) return
+    const updated = (config.albuns_bloqueados ?? []).filter(e => e !== entry)
+    const newConfig = { ...config, albuns_bloqueados: updated }
+    setConfig(newConfig)
+    salvar({ albuns_bloqueados: updated })
+  }
+
+  function parseEntry(entry: string): { id: string; nome: string; artista?: string } {
+    try { return JSON.parse(entry) } catch { return { id: entry, nome: entry } }
   }
 
   if (loading) {
@@ -185,6 +275,150 @@ export default function ConfiguracaoPanel({ academiaSlug }: { academiaSlug: stri
             Adicionar
           </button>
         </div>
+      </div>
+
+      {/* Artistas bloqueados */}
+      <div className="rounded-2xl p-5 flex flex-col gap-4" style={{ background: '#1A1A1A', border: '0.5px solid #2A2A2A' }}>
+        <div>
+          <h3 className="text-white font-semibold">Artistas bloqueados</h3>
+          <p className="text-xs mt-0.5" style={{ color: '#666' }}>Busque pelo nome do artista no Spotify</p>
+        </div>
+
+        {(config.artistas_bloqueados ?? []).length > 0 && (
+          <div className="flex flex-col gap-2">
+            {(config.artistas_bloqueados ?? []).map(entry => {
+              const item = parseEntry(entry)
+              return (
+                <div key={entry} className="flex items-center justify-between rounded-xl px-3 py-2" style={{ background: '#2A2A2A' }}>
+                  <span className="text-white text-sm">{item.nome}</span>
+                  <button
+                    onClick={() => removerArtista(entry)}
+                    className="text-xs ml-3 flex-shrink-0 transition-colors"
+                    style={{ color: '#666' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = '#FF4444')}
+                    onMouseLeave={e => (e.currentTarget.style.color = '#666')}
+                  >
+                    Remover
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        <div className="relative">
+          <input
+            type="text"
+            value={buscaArtista}
+            onChange={e => handleBuscaArtista(e.target.value)}
+            placeholder="Buscar artista..."
+            className="w-full rounded-xl px-3 py-2 text-white text-sm focus:outline-none"
+            style={{ background: '#2A2A2A', border: '0.5px solid #333', color: 'white' }}
+          />
+          {buscandoArtista && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <div className="w-3.5 h-3.5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+        </div>
+
+        {resultadosArtista.length > 0 && (
+          <div className="flex flex-col gap-1 rounded-xl overflow-hidden" style={{ border: '0.5px solid #333' }}>
+            {resultadosArtista.map(artista => (
+              <button
+                key={artista.id}
+                onClick={() => adicionarArtista(artista)}
+                className="flex items-center gap-3 px-3 py-2.5 text-left w-full transition-colors"
+                style={{ background: '#222' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#2A2A2A')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#222')}
+              >
+                {artista.imagemUrl ? (
+                  <img src={artista.imagemUrl} alt={artista.nome} className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                ) : (
+                  <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-sm" style={{ background: '#333', color: '#666' }}>♪</div>
+                )}
+                <span className="text-white text-sm truncate">{artista.nome}</span>
+                <span className="text-xs ml-auto flex-shrink-0" style={{ color: '#F5A800' }}>+ Bloquear</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Álbuns bloqueados */}
+      <div className="rounded-2xl p-5 flex flex-col gap-4" style={{ background: '#1A1A1A', border: '0.5px solid #2A2A2A' }}>
+        <div>
+          <h3 className="text-white font-semibold">Álbuns bloqueados</h3>
+          <p className="text-xs mt-0.5" style={{ color: '#666' }}>Busque pelo nome do álbum no Spotify</p>
+        </div>
+
+        {(config.albuns_bloqueados ?? []).length > 0 && (
+          <div className="flex flex-col gap-2">
+            {(config.albuns_bloqueados ?? []).map(entry => {
+              const item = parseEntry(entry)
+              return (
+                <div key={entry} className="flex items-center justify-between rounded-xl px-3 py-2" style={{ background: '#2A2A2A' }}>
+                  <div className="min-w-0">
+                    <p className="text-white text-sm truncate">{item.nome}</p>
+                    {item.artista && <p className="text-xs truncate" style={{ color: '#666' }}>{item.artista}</p>}
+                  </div>
+                  <button
+                    onClick={() => removerAlbum(entry)}
+                    className="text-xs ml-3 flex-shrink-0 transition-colors"
+                    style={{ color: '#666' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = '#FF4444')}
+                    onMouseLeave={e => (e.currentTarget.style.color = '#666')}
+                  >
+                    Remover
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        <div className="relative">
+          <input
+            type="text"
+            value={buscaAlbum}
+            onChange={e => handleBuscaAlbum(e.target.value)}
+            placeholder="Buscar álbum..."
+            className="w-full rounded-xl px-3 py-2 text-white text-sm focus:outline-none"
+            style={{ background: '#2A2A2A', border: '0.5px solid #333', color: 'white' }}
+          />
+          {buscandoAlbum && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <div className="w-3.5 h-3.5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+        </div>
+
+        {resultadosAlbum.length > 0 && (
+          <div className="flex flex-col gap-1 rounded-xl overflow-hidden" style={{ border: '0.5px solid #333' }}>
+            {resultadosAlbum.map(album => (
+              <button
+                key={album.id}
+                onClick={() => adicionarAlbum(album)}
+                className="flex items-center gap-3 px-3 py-2.5 text-left w-full transition-colors"
+                style={{ background: '#222' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#2A2A2A')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#222')}
+              >
+                {album.imagemUrl ? (
+                  <img src={album.imagemUrl} alt={album.nome} className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+                ) : (
+                  <div className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center text-sm" style={{ background: '#333', color: '#666' }}>♪</div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-white text-sm truncate">{album.nome}</p>
+                  {album.artista && <p className="text-xs truncate" style={{ color: '#666' }}>{album.artista}</p>}
+                </div>
+                <span className="text-xs ml-auto flex-shrink-0" style={{ color: '#F5A800' }}>+ Bloquear</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Músicas bloqueadas */}
