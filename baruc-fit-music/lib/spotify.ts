@@ -131,7 +131,10 @@ export async function getArtistGenres(artistId: string, token: string): Promise<
   const res = await fetch(`${SPOTIFY_API}/artists/${artistId}`, {
     headers: { Authorization: `Bearer ${token}` },
   })
-  if (!res.ok) return []
+  if (!res.ok) {
+    console.log('[GENERO] ERRO ao buscar gêneros:', `status=${res.status} artistId=${artistId}`)
+    return []
+  }
   const data = await res.json()
   return data.genres ?? []
 }

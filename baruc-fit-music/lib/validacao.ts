@@ -75,6 +75,8 @@ export async function validarSugestao(
 
   // 3. Artista na blacklist
   const artistId = track.artists[0]?.id
+  console.log('[GENERO] artistId recebido na validação:', artistId)
+
   if (artistId && config.artistas_bloqueados?.length) {
     const artistaBloqueado = config.artistas_bloqueados.some((entry: string) => {
       try { return JSON.parse(entry).id === artistId } catch { return false }
@@ -100,13 +102,19 @@ export async function validarSugestao(
   // 7. Gênero do artista via Spotify API — ANTES do limite do aluno
   // Músicas de gênero bloqueado devem ser rejeitadas sem consumir a cota diária
   if (artistId && config.generos_bloqueados?.length) {
+    console.log('[GENERO] Buscando gêneros para artistId:', artistId)
+
     const generosSpotify = await getArtistGenres(artistId, spotifyToken)
+    console.log('[GENERO] Gêneros retornados pelo Spotify:', generosSpotify)
+
     const generosNormalizados = (config.generos_bloqueados as string[]).map(normalizar)
+    console.log('[GENERO] Gêneros bloqueados normalizados:', generosNormalizados)
 
     // Retorna o gênero ORIGINAL do Spotify (sem normalizar) para salvar no log
     const generoOriginalBloqueado = generosSpotify.find(g =>
       generosNormalizados.some(bloqueado => normalizar(g).includes(bloqueado))
     )
+    console.log('[GENERO] Resultado da comparação:', generoOriginalBloqueado ?? 'nenhum bloqueio')
 
     if (generoOriginalBloqueado) {
       return { ok: false, motivo: 'genero_bloqueado', generoDetectado: generoOriginalBloqueado }
