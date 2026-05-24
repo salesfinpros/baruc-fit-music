@@ -2,7 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { limparTelefone } from '@/lib/telefone'
 
-// POST /api/alunos — criar ou recuperar aluno por CPF (primário) ou telefone (fallback)
+// POST /api/alunos — recuperar ou criar aluno
+//
+// Ordem de busca (para impedir bypass de limite trocando nome/telefone):
+//   1. CPF  → identificador primário
+//   2. Telefone → impede bypass com CPF novo + mesmo telefone
+//   3. Criar novo aluno (apenas se CPF e telefone são genuinamente novos)
+//
+// Se aluno for encontrado por telefone e não tiver CPF ainda, o CPF é vinculado
+// automaticamente — assim futuras tentativas com telefone diferente ainda são barradas.
 export async function POST(req: NextRequest) {
   try {
     const { nome, cpf, telefone, academiaSlug } = await req.json()
@@ -26,64 +34,71 @@ export async function POST(req: NextRequest) {
 
     if (!academia) return NextResponse.json({ error: 'Academia não encontrada' }, { status: 404 })
 
-    // Busca por CPF primeiro (se fornecido e válido)
-    if (cpf?.trim()) {
-      const cpfLimpo = cpf.replace(/\D/g, '')
-      if (cpfLimpo.length === 11) {
-        const { data: existenteCPF } = await db
-          .from('alunos')
-          .select('id, nome')
-          .eq('academia_id', academia.id)
-          .eq('cpf', cpf.trim())
-          .maybeSingle()
+    const cpfFormatado = cpf?.trim() && cpf.replace(/\D/g, '').length === 11 ? cpf.trim() : null
 
-        if (existenteCPF) {
-          return NextResponse.json({ id: existenteCPF.id, nome: existenteCPF.nome, novo: false })
-        }
+    // 1. Busca por CPF (identificador primário)
+    if (cpfFormatado) {
+      const { data: porCPF } = await db
+        .from('alunos')
+        .select('id, nome')
+        .eq('academia_id', academia.id)
+        .eq('cpf', cpfFormatado)
+        .maybeSingle()
 
-        // Criar novo aluno com CPF
-        const { data: novo, error } = await db
-          .from('alunos')
-          .insert({
-            academia_id: academia.id,
-            nome: nome.trim(),
-            telefone: telefoneLimpo,
-            cpf: cpf.trim(),
-          })
-          .select('id, nome')
-          .single()
-
-        if (error) {
-          if (error.code === '23505') {
-            return NextResponse.json({ error: 'CPF já cadastrado nesta academia.' }, { status: 409 })
-          }
-          throw error
-        }
-
-        return NextResponse.json({ id: novo.id, nome: novo.nome, novo: true })
+      if (porCPF) {
+        return NextResponse.json({ id: porCPF.id, nome: porCPF.nome, novo: false })
       }
     }
 
-    // Fallback: busca por telefone (alunos sem CPF ou acesso pelo localStorage antigo)
-    const { data: existente } = await db
+    // 2. Busca por telefone — sempre, mesmo quando CPF foi fornecido
+    // Impede que aluno burle o limite registrando com CPF novo no mesmo telefone,
+    // ou com CPF diferente + mesmo telefone.
+    const { data: porTelefone } = await db
       .from('alunos')
-      .select('id, nome')
+      .select('id, nome, cpf')
       .eq('academia_id', academia.id)
       .eq('telefone', telefoneLimpo)
       .maybeSingle()
 
-    if (existente) {
-      return NextResponse.json({ id: existente.id, nome: existente.nome, novo: false })
+    if (porTelefone) {
+      // Vincular CPF ao registro existente se ele ainda não tem um
+      // (migração de alunos cadastrados antes do CPF ser adicionado)
+      if (cpfFormatado && !porTelefone.cpf) {
+        await db
+          .from('alunos')
+          .update({ cpf: cpfFormatado })
+          .eq('id', porTelefone.id)
+          .eq('academia_id', academia.id)
+      }
+      return NextResponse.json({ id: porTelefone.id, nome: porTelefone.nome, novo: false })
     }
 
-    // Criar novo aluno sem CPF
+    // 3. CPF e telefone são genuinamente novos — criar aluno
     const { data: novo, error } = await db
       .from('alunos')
-      .insert({ academia_id: academia.id, nome: nome.trim(), telefone: telefoneLimpo })
+      .insert({
+        academia_id: academia.id,
+        nome: nome.trim(),
+        telefone: telefoneLimpo,
+        ...(cpfFormatado ? { cpf: cpfFormatado } : {}),
+      })
       .select('id, nome')
       .single()
 
-    if (error) throw error
+    if (error) {
+      // Condição de corrida: outro insert ganhou — buscar o registro já existente
+      if (error.code === '23505') {
+        const { data: existente } = await db
+          .from('alunos')
+          .select('id, nome')
+          .eq('academia_id', academia.id)
+          .eq('telefone', telefoneLimpo)
+          .maybeSingle()
+        if (existente) return NextResponse.json({ id: existente.id, nome: existente.nome, novo: false })
+        return NextResponse.json({ error: 'Dados já cadastrados nesta academia.' }, { status: 409 })
+      }
+      throw error
+    }
 
     return NextResponse.json({ id: novo.id, nome: novo.nome, novo: true })
   } catch (err) {
