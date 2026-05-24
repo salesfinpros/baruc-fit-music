@@ -5,7 +5,7 @@ import type { ConfigAcademia } from '@/lib/supabase'
 
 type ItemBloqueado = { id: string; nome: string; artista?: string; imagemUrl: string | null }
 
-export default function ConfiguracaoPanel({ academiaSlug }: { academiaSlug: string }) {
+export default function ConfiguracaoPanel({ academiaSlug, redeId, redeNome }: { academiaSlug: string; redeId: string | null; redeNome: string | null }) {
   const [config, setConfig] = useState<ConfigAcademia | null>(null)
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState(false)
@@ -13,6 +13,8 @@ export default function ConfiguracaoPanel({ academiaSlug }: { academiaSlug: stri
 
   const [novoGenero, setNovoGenero] = useState('')
   const [novaMusicaId, setNovaMusicaId] = useState('')
+  const [sincronizandoRede, setSincronizandoRede] = useState(false)
+  const [mensagemRede, setMensagemRede] = useState<string | null>(null)
 
   // Artistas
   const [buscaArtista, setBuscaArtista] = useState('')
@@ -162,6 +164,26 @@ export default function ConfiguracaoPanel({ academiaSlug }: { academiaSlug: stri
     try { return JSON.parse(entry) } catch { return { id: entry, nome: entry } }
   }
 
+  async function sincronizarRede() {
+    setSincronizandoRede(true)
+    setMensagemRede(null)
+    try {
+      const res = await fetch('/api/admin/config/aplicar-rede', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setMensagemRede(
+        data.atualizadas === 0
+          ? 'Nenhuma outra unidade encontrada na rede.'
+          : `Bloqueios sincronizados com ${data.atualizadas} outra${data.atualizadas > 1 ? 's' : ''} unidade${data.atualizadas > 1 ? 's' : ''}.`
+      )
+    } catch (e) {
+      setMensagemRede('Erro ao sincronizar com a rede.')
+    } finally {
+      setSincronizandoRede(false)
+      setTimeout(() => setMensagemRede(null), 5000)
+    }
+  }
+
   if (loading) {
     return <div className="text-zinc-500 text-center py-8">Carregando configurações...</div>
   }
@@ -170,6 +192,41 @@ export default function ConfiguracaoPanel({ academiaSlug }: { academiaSlug: stri
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Banner de rede */}
+      {redeId && (
+        <div className="rounded-2xl p-4 flex items-center justify-between gap-3" style={{ background: 'rgba(245,168,0,0.08)', border: '0.5px solid rgba(245,168,0,0.25)' }}>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <svg className="w-4 h-4 flex-shrink-0" style={{ color: '#F5A800' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+            <div className="min-w-0">
+              <p className="text-xs font-medium" style={{ color: '#F5A800' }}>Rede: {redeNome}</p>
+              <p className="text-xs" style={{ color: '#666' }}>Bloqueios podem ser sincronizados entre unidades</p>
+            </div>
+          </div>
+          <button
+            onClick={sincronizarRede}
+            disabled={sincronizandoRede}
+            className="flex-shrink-0 flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+            style={{ background: 'rgba(245,168,0,0.15)', color: '#F5A800', border: '0.5px solid rgba(245,168,0,0.3)' }}
+          >
+            {sincronizandoRede ? (
+              <div className="w-3 h-3 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            )}
+            Sincronizar à rede
+          </button>
+        </div>
+      )}
+      {mensagemRede && (
+        <div className="text-sm px-4 py-2.5 rounded-xl" style={{ background: 'rgba(245,168,0,0.08)', border: '0.5px solid rgba(245,168,0,0.2)', color: '#F5A800' }}>
+          {mensagemRede}
+        </div>
+      )}
+
       {mensagem && (
         <div className={`text-sm px-4 py-3 rounded-xl border ${
           mensagem.tipo === 'ok'

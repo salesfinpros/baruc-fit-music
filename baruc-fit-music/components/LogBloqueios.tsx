@@ -35,13 +35,14 @@ function primeiroArtista(artista: string): string {
   return artista.split(',')[0].trim()
 }
 
-type Props = { academiaId: string }
+type Props = { academiaId: string; redeId: string | null }
 
-export default function LogBloqueios({ academiaId }: Props) {
+export default function LogBloqueios({ academiaId, redeId }: Props) {
   const [logs, setLogs] = useState<BloqueioLog[]>([])
   const [confirmandoBloqueio, setConfirmandoBloqueio] = useState<string | null>(null)
   const [bloqueando, setBloqueando] = useState<string | null>(null)
   const [artistaBloqueado, setArtistaBloqueado] = useState<string | null>(null)
+  const [aplicarRede, setAplicarRede] = useState(false)
 
   useEffect(() => {
     supabase
@@ -71,15 +72,18 @@ export default function LogBloqueios({ academiaId }: Props) {
       const res = await fetch('/api/admin/config/bloquear-artista', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ artistaNome: primeiroArtista(artistaNome) }),
+        body: JSON.stringify({ artistaNome: primeiroArtista(artistaNome), aplicarRede }),
       })
       const data = await res.json()
       if (res.ok) {
-        setArtistaBloqueado(data.artista?.nome ?? artistaNome)
-        setTimeout(() => setArtistaBloqueado(null), 3000)
+        const nome = data.artista?.nome ?? artistaNome
+        const sufixo = data.propagadas > 0 ? ` (aplicado em ${data.propagadas} outra${data.propagadas > 1 ? 's' : ''} unidade${data.propagadas > 1 ? 's' : ''})` : ''
+        setArtistaBloqueado(nome + sufixo)
+        setTimeout(() => setArtistaBloqueado(null), 4000)
       }
     } finally {
       setBloqueando(null)
+      setAplicarRede(false)
     }
   }
 
@@ -143,14 +147,25 @@ export default function LogBloqueios({ academiaId }: Props) {
 
           {/* Confirmação inline */}
           {confirmandoBloqueio === log.id && (
-            <div className="flex items-center justify-between px-4 py-2.5 gap-3" style={{ background: '#111', borderTop: '0.5px solid #2A2A2A' }}>
+            <div className="flex flex-col gap-2 px-4 py-2.5" style={{ background: '#111', borderTop: '0.5px solid #2A2A2A' }}>
               <p className="text-xs text-white">
                 Bloquear <strong style={{ color: '#F5A800' }}>{primeiroArtista(log.artista)}</strong>?
                 <span className="ml-1" style={{ color: '#555' }}>Futuras sugestões serão rejeitadas.</span>
               </p>
-              <div className="flex gap-2 flex-shrink-0">
+              {redeId && (
+                <label className="flex items-center gap-2 cursor-pointer w-fit">
+                  <input
+                    type="checkbox"
+                    checked={aplicarRede}
+                    onChange={e => setAplicarRede(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-yellow-400"
+                  />
+                  <span className="text-xs" style={{ color: '#999' }}>Aplicar em toda a rede</span>
+                </label>
+              )}
+              <div className="flex gap-2">
                 <button
-                  onClick={() => setConfirmandoBloqueio(null)}
+                  onClick={() => { setConfirmandoBloqueio(null); setAplicarRede(false) }}
                   className="text-xs px-3 py-1 rounded-lg transition-colors"
                   style={{ background: '#2A2A2A', color: '#999' }}
                 >

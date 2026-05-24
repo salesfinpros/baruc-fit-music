@@ -26,6 +26,8 @@ type AcademiaInfo = {
   nome: string
   slug: string
   spotifyConectado: boolean
+  redeId: string | null
+  redeNome: string | null
 }
 
 type Aba = 'fila' | 'bloqueios' | 'historico' | 'qrcode' | 'spotify' | 'config' | 'alunos' | 'sugestoes'
@@ -292,8 +294,8 @@ export default function PainelClient({
 
           {/* Conteúdo da aba ativa */}
           <div className="max-w-2xl">
-            {aba === 'fila' && <FilaTempoReal academiaId={academia.id} academiaSlug={academia.slug} />}
-            {aba === 'bloqueios' && <LogBloqueios academiaId={academia.id} />}
+            {aba === 'fila' && <FilaTempoReal academiaId={academia.id} academiaSlug={academia.slug} redeId={academia.redeId} />}
+            {aba === 'bloqueios' && <LogBloqueios academiaId={academia.id} redeId={academia.redeId} />}
             {aba === 'historico' && <HistoricoAdmin academiaSlug={academia.slug} />}
             {aba === 'qrcode' && (
               <div className="rounded-xl p-6" style={{ background: '#1A1A1A', border: '0.5px solid #2A2A2A' }}>
@@ -328,7 +330,7 @@ export default function PainelClient({
                 )}
               </div>
             )}
-            {aba === 'config' && <ConfiguracaoPanel academiaSlug={academia.slug} />}
+            {aba === 'config' && <ConfiguracaoPanel academiaSlug={academia.slug} redeId={academia.redeId} redeNome={academia.redeNome} />}
             {aba === 'alunos' && <AlunosAdmin academiaId={academia.id} />}
             {aba === 'sugestoes' && <SugestoesAdmin academiaSlug={academia.slug} />}
           </div>
