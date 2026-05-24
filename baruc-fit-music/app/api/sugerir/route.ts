@@ -6,7 +6,7 @@ import { validarSugestao, mensagensRejeicao } from '@/lib/validacao'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { trackId, trackName, artistName, artistId, albumId, albumArt, durationMs, explicit, academiaSlug, alunoId } = body
+    const { trackId, trackName, artistName, artistId, allArtistIds, albumId, albumArt, durationMs, explicit, academiaSlug, alunoId } = body
 
     if (!trackId || !academiaSlug || !alunoId) {
       return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
@@ -39,10 +39,11 @@ export async function POST(req: NextRequest) {
 
     const token = await getAcademiaToken(academia.id)
 
+    const artistIds: string[] = Array.isArray(allArtistIds) && allArtistIds.length ? allArtistIds : [artistId]
     const track = {
       id: trackId,
       name: trackName,
-      artists: [{ id: artistId, name: artistName }],
+      artists: artistIds.map((id, i) => ({ id, name: i === 0 ? artistName : '' })),
       album: { id: albumId ?? '', images: [{ url: albumArt }] },
       duration_ms: durationMs,
       explicit: !!explicit,

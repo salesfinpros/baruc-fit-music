@@ -125,7 +125,7 @@ export async function searchAlbums(query: string, token: string): Promise<Spotif
 }
 
 // ----------------------------------------------------------------
-// Buscar gêneros do artista
+// Buscar gêneros do artista (individual)
 // ----------------------------------------------------------------
 export async function getArtistGenres(artistId: string, token: string): Promise<string[]> {
   const res = await fetch(`${SPOTIFY_API}/artists/${artistId}`, {
@@ -137,6 +137,42 @@ export async function getArtistGenres(artistId: string, token: string): Promise<
   }
   const data = await res.json()
   return data.genres ?? []
+}
+
+// ----------------------------------------------------------------
+// Buscar gêneros de múltiplos artistas de uma vez (batch)
+// GET /artists?ids=id1,id2,id3 — até 50 IDs
+// ----------------------------------------------------------------
+export async function getArtistGenresBatch(ids: string[], token: string): Promise<string[]> {
+  if (!ids.length) return []
+  const params = new URLSearchParams({ ids: ids.slice(0, 50).join(',') })
+  const res = await fetch(`${SPOTIFY_API}/artists?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) return []
+  const data = await res.json()
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const artist of data.artists ?? []) {
+    for (const g of artist?.genres ?? []) {
+      if (!seen.has(g)) { seen.add(g); result.push(g) }
+    }
+  }
+  return result
+}
+
+// ----------------------------------------------------------------
+// Buscar gêneros pelo primeiro álbum do artista
+// GET /artists/{id}/albums?limit=1 → genres do álbum
+// ----------------------------------------------------------------
+export async function getArtistAlbumGenres(artistId: string, token: string): Promise<string[]> {
+  const params = new URLSearchParams({ limit: '1', include_groups: 'album' })
+  const res = await fetch(`${SPOTIFY_API}/artists/${artistId}/albums?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) return []
+  const data = await res.json()
+  return data.items?.[0]?.genres ?? []
 }
 
 // ----------------------------------------------------------------

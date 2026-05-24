@@ -71,6 +71,7 @@ export default function PaginaSugestao() {
           trackName: track.name,
           artistName: track.artist,
           artistId: track.artistId,
+          allArtistIds: track.allArtistIds,
           albumId: track.albumId,
           albumArt: track.albumArt,
           durationMs: track.durationMs,

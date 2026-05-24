@@ -1,5 +1,5 @@
 import { supabaseAdmin } from './supabase'
-import { getArtistGenres, SpotifyTrack } from './spotify'
+import { getArtistGenres, getArtistGenresBatch, getArtistAlbumGenres, SpotifyTrack } from './spotify'
 
 export type MotivoRejeicao =
   | 'musica_bloqueada'
@@ -26,6 +26,36 @@ export const GENEROS_PADRAO = [
   'brega',
   'sertanejo universitario',
 ]
+
+// Cascata de 4 etapas para buscar gêneros quando Spotify retorna [] para artistas brasileiros
+async function buscarGenerosCascata(
+  artistId: string,
+  allArtistIds: string[],
+  artistName: string,
+  generosBloqueados: string[],
+  token: string
+): Promise<{ genres: string[]; fonte: string }> {
+  // Etapa 1 — artista principal
+  const step1 = await getArtistGenres(artistId, token)
+  if (step1.length) return { genres: step1, fonte: 'artista_principal' }
+
+  // Etapa 2 — batch de todos os artistas da faixa (só se houver mais de 1)
+  if (allArtistIds.length > 1) {
+    const step2 = await getArtistGenresBatch(allArtistIds, token)
+    if (step2.length) return { genres: step2, fonte: 'batch_artistas' }
+  }
+
+  // Etapa 3 — gêneros do primeiro álbum do artista principal
+  const step3 = await getArtistAlbumGenres(artistId, token)
+  if (step3.length) return { genres: step3, fonte: 'album' }
+
+  // Etapa 4 — fallback pelo nome do artista (ex: "Thiago Pagodinho" → "pagode")
+  const nomeNorm = normalizar(artistName)
+  const keyword = generosBloqueados.find(g => nomeNorm.includes(normalizar(g)))
+  if (keyword) return { genres: [keyword], fonte: 'nome_artista' }
+
+  return { genres: [], fonte: 'nenhuma' }
+}
 
 // Remove acentos e normaliza para comparação robusta com gêneros do Spotify
 function normalizar(texto: string): string {
@@ -99,18 +129,23 @@ export async function validarSugestao(
     return { ok: false, motivo: 'ja_na_fila' }
   }
 
-  // 7. Gênero do artista via Spotify API — ANTES do limite do aluno
+  // 7. Gênero do artista via cascata — ANTES do limite do aluno
   // Músicas de gênero bloqueado devem ser rejeitadas sem consumir a cota diária
   if (artistId && config.generos_bloqueados?.length) {
-    console.log('[GENERO] Buscando gêneros para artistId:', artistId)
+    const allArtistIds = track.artists.map(a => a.id)
+    const artistName = track.artists[0]?.name ?? ''
+    const generosBloqueados = config.generos_bloqueados as string[]
 
-    const generosSpotify = await getArtistGenres(artistId, spotifyToken)
-    console.log('[GENERO] Gêneros retornados pelo Spotify:', generosSpotify)
+    console.log('[GENERO] Iniciando cascata para artistId:', artistId, '| todos IDs:', allArtistIds)
 
-    const generosNormalizados = (config.generos_bloqueados as string[]).map(normalizar)
-    console.log('[GENERO] Gêneros bloqueados normalizados:', generosNormalizados)
+    const { genres: generosSpotify, fonte } = await buscarGenerosCascata(
+      artistId, allArtistIds, artistName, generosBloqueados, spotifyToken
+    )
 
-    // Retorna o gênero ORIGINAL do Spotify (sem normalizar) para salvar no log
+    console.log('[GENERO] Gêneros encontrados (fonte:', fonte, '):', generosSpotify)
+
+    const generosNormalizados = generosBloqueados.map(normalizar)
+
     const generoOriginalBloqueado = generosSpotify.find(g =>
       generosNormalizados.some(bloqueado => normalizar(g).includes(bloqueado))
     )

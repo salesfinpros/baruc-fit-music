@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
         name: t.name,
         artist: t.artists.map(a => a.name).join(', '),
         artistId: t.artists[0]?.id,
+        allArtistIds: t.artists.map(a => a.id),
         albumId: t.album.id,
         albumArt: t.album.images[1]?.url ?? t.album.images[0]?.url ?? null,
         durationMs: t.duration_ms,
