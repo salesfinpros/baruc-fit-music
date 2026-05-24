@@ -15,6 +15,29 @@ export type ResultadoValidacao =
   | { ok: true }
   | { ok: false; motivo: MotivoRejeicao; generoDetectado?: string }
 
+// Gêneros padrão para novas academias
+export const GENEROS_PADRAO = [
+  'funk',
+  'funk ostentacao',
+  'piseiro',
+  'forro',
+  'pagode',
+  'axe',
+  'brega',
+  'sertanejo universitario',
+]
+
+// Remove acentos e normaliza para comparação robusta com gêneros do Spotify
+function normalizar(texto: string): string {
+  return texto
+    .toLowerCase()
+    .normalize('NFD')
+    .split('')
+    .filter(c => c.charCodeAt(0) < 0x0300 || c.charCodeAt(0) > 0x036f)
+    .join('')
+    .trim()
+}
+
 export async function validarSugestao(
   track: SpotifyTrack,
   academiaId: string,
@@ -74,23 +97,25 @@ export async function validarSugestao(
     return { ok: false, motivo: 'ja_na_fila' }
   }
 
-  // 7. Limite diário do aluno
-  if ((aluno?.total_sugestoes_hoje ?? 0) >= config.limite_sugestoes_aluno_por_dia) {
-    return { ok: false, motivo: 'limite_aluno' }
+  // 7. Gênero do artista via Spotify API — ANTES do limite do aluno
+  // Músicas de gênero bloqueado devem ser rejeitadas sem consumir a cota diária
+  if (artistId && config.generos_bloqueados?.length) {
+    const generosSpotify = await getArtistGenres(artistId, spotifyToken)
+    const generosNormalizados = (config.generos_bloqueados as string[]).map(normalizar)
+
+    // Retorna o gênero ORIGINAL do Spotify (sem normalizar) para salvar no log
+    const generoOriginalBloqueado = generosSpotify.find(g =>
+      generosNormalizados.some(bloqueado => normalizar(g).includes(bloqueado))
+    )
+
+    if (generoOriginalBloqueado) {
+      return { ok: false, motivo: 'genero_bloqueado', generoDetectado: generoOriginalBloqueado }
+    }
   }
 
-  // 8. Gênero do artista via Spotify API
-  if (artistId && config.generos_bloqueados?.length) {
-    const genres = await getArtistGenres(artistId, spotifyToken)
-    const bloqueado = config.generos_bloqueados.find((g: string) =>
-      genres.some((genre: string) => genre.toLowerCase().includes(g.toLowerCase()))
-    )
-    if (bloqueado) {
-      const generoDetectado = genres.find((g: string) =>
-        g.toLowerCase().includes(bloqueado.toLowerCase())
-      )
-      return { ok: false, motivo: 'genero_bloqueado', generoDetectado: generoDetectado ?? bloqueado }
-    }
+  // 8. Limite diário do aluno — último critério
+  if ((aluno?.total_sugestoes_hoje ?? 0) >= config.limite_sugestoes_aluno_por_dia) {
+    return { ok: false, motivo: 'limite_aluno' }
   }
 
   return { ok: true }
