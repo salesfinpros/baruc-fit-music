@@ -23,7 +23,12 @@ export default async function PainelAdmin({ params }: Props) {
 
   if (!academia) redirect('/admin/login')
 
-  const rede = (academia as { redes?: { nome: string } | null }).redes
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const raw = academia as any
+  const redeId: string | null = raw.rede_id ?? null
+  const redeNome: string | null = Array.isArray(raw.redes)
+    ? (raw.redes[0]?.nome ?? null)
+    : (raw.redes?.nome ?? null)
 
   return (
     <Suspense fallback={<div className="min-h-screen bg-black" />}>
@@ -33,8 +38,8 @@ export default async function PainelAdmin({ params }: Props) {
           nome: academia.nome,
           slug: academia.slug,
           spotifyConectado: !!academia.spotify_access_token,
-          redeId: (academia as { rede_id?: string | null }).rede_id ?? null,
-          redeNome: rede?.nome ?? null,
+          redeId,
+          redeNome,
         }}
         appUrl={process.env.NEXT_PUBLIC_APP_URL!}
       />
