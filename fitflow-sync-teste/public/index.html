@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<title>Fitflow Sync — São Luís do Curu</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="janela">
+    <header class="titlebar">
+      <div class="titlebar-left">
+        <span class="logo-dot"></span>
+        <span class="titulo">Fitflow Sync</span>
+        <span class="subtitulo">São Luís do Curu · leitor facial/digital</span>
+      </div>
+      <div id="statusLeitor" class="status-leitor pendente">
+        <span class="ponto"></span>
+        <span class="texto">verificando leitor…</span>
+      </div>
+    </header>
+
+    <section class="barra-sync">
+      <div class="sync-info">
+        <span class="rotulo">Última sincronização</span>
+        <span id="ultimaSync" class="valor">—</span>
+      </div>
+      <div class="sync-info">
+        <span class="rotulo">Automática a cada</span>
+        <span id="intervalo" class="valor">—</span>
+      </div>
+      <button id="btnSync" class="botao-primario">Sincronizar agora</button>
+    </section>
+
+    <section class="corpo">
+      <div class="painel-alunos">
+        <div class="busca">
+          <input id="busca" type="search" placeholder="Buscar aluno por nome ou matrícula…" autocomplete="off" />
+        </div>
+        <div class="tabela-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Aluno</th>
+                <th>Matrícula</th>
+                <th>Biometria</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="corpoTabela">
+              <tr><td colspan="4" class="vazio">Sincronizando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <aside class="painel-log">
+        <div class="painel-log-titulo">Atividade</div>
+        <div id="log" class="log"></div>
+      </aside>
+    </section>
+  </div>
+
+<script src="/app.js"></script>
+</body>
+</html>
