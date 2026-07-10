@@ -1,11 +1,6 @@
 Pontos de melhoria do Baruc Fit Music: 
 
-- Colocar a música que tá tocando agora para aparecer na visão do aluno
 - Colocar uma votação nas músicas indicadas que estão na fila e assim ela subir para prioridade (cada usuário só pode votar uma vez)
-- Histórico de músicas tocadas nos últimos 30 dias, as mais tocadas também para construirmos futuramente uma playlist com base no gosto musical dos alunos, o histórico precisa ter quem indicou a música, qual horário foi indicada e qual a música. (precisa estar somente no painel admin) 
-
-- Como sei se o banco de dados está realmente atualizado após as melhorias que fizemos? 
-
 
 
 
