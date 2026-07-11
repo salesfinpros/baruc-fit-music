@@ -40,3 +40,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .claude/settings.local.json
+fitflow-catraca-teste/
+fitflow-sync-teste/
